@@ -106,10 +106,6 @@ DEFAULTS = {
     # sounds directory. Override via PLUGIN_CONFIGS or the `?va_lang=` query
     # parameter (comma-separated).
     "VA_DEFAULT_LANG": ["ml_IN", "en_IN"],
-    # A token that moved to "in progress" within this many seconds is shown
-    # as "Now calling" (highlighted) instead of "In consultation".
-    # Set to 0 to disable the highlight.
-    "RECENT_CALL_SECONDS": 60,
     # Maximum number of missed (awaiting re-call) tokens listed at the bottom
     # of the board. Set to 0 to hide the missed tokens strip.
     "MISSED_TOKENS_LIMIT": 8,

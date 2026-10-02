@@ -136,10 +136,13 @@ Each row on the board shows the state of its counter / room:
 
 | State | When | Look |
 | --- | --- | --- |
-| Now calling | Token moved to "in progress" within `RECENT_CALL_SECONDS` (default `60`) | Yellow, pulsing row |
-| In consultation | Token in progress for longer than that | Normal row |
+| Now calling | Token called to the counter / room (status `CREATED` with a sub-queue) — stays until the patient arrives | Yellow, pulsing row |
+| In consultation | Token being served (status `IN_PROGRESS`) | Normal row |
 | Emergency | Token category has `metadata.priority = true`, or its name contains Emergency / Priority / Urgent | Red row |
 | On break | Sub-queue (service point) status is `inactive` | Blue row, "थोड़ी देर में लौटेंगे · On break" |
+
+"Next" lists tokens still waiting in the queue (not yet called to any
+counter), priority tokens first.
 
 Tokens marked "awaiting re-call" today for the resources on the board are
 listed in a **Missed** strip at the bottom, newest first, up to

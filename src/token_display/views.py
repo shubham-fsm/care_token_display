@@ -118,46 +118,49 @@ class SubQueuesTokenDisplayView(APIView):
             for sub_queue in sub_queues
         )
 
-        now = timezone.now()
-        recent_call_seconds = plugin_settings.RECENT_CALL_SECONDS
+        today = make_naive(timezone.now()).date()
 
         # Fetch token data for each sub-queue
         sub_queues_with_data = []
         for sub_queue in sub_queues:
             on_break = sub_queue.status == TokenSubQueueStatusOptions.inactive.value
-            # Fetch the current token for this sub-queue
-            token = (
-                None
-                if on_break
-                else (
-                    Token.objects.filter(
-                        queue__resource=sub_queue.resource,
-                        queue__date=make_naive(timezone.now()).date(),
-                        queue__is_primary=True,
-                        sub_queue=sub_queue,
-                        status=TokenStatusOptions.IN_PROGRESS.value,
-                    )
-                    .order_by("-modified_date")
-                    .first()
-                )
+            todays_tokens = Token.objects.filter(
+                queue__resource=sub_queue.resource,
+                queue__date=today,
+                queue__is_primary=True,
+            ).select_related("category")
+
+            # "Now calling": the token has been called to this counter / room
+            # but the patient has not arrived yet (status still CREATED). It
+            # stays highlighted until the doctor starts serving it, however
+            # long the patient takes to come.
+            called_token = (
+                todays_tokens.filter(sub_queue=sub_queue, status=TokenStatusOptions.CREATED.value)
+                .order_by("-modified_date")
+                .first()
             )
+            # "In consultation": the patient is being served.
+            serving_token = (
+                todays_tokens.filter(sub_queue=sub_queue, status=TokenStatusOptions.IN_PROGRESS.value)
+                .order_by("-modified_date")
+                .first()
+            )
+            token = None if on_break else (called_token or serving_token)
 
             token_code = fmt_token_number(token) if token else None
-            # "Now calling": the token was moved to in-progress moments ago.
-            # After that it is shown as being in consultation.
-            is_calling = bool(
-                token and recent_call_seconds and (now - token.modified_date).total_seconds() <= recent_call_seconds
-            )
+            is_calling = bool(token and token == called_token)
             is_priority = bool(token and is_priority_token(token))
 
-            upcoming_tokens_qs = Token.objects.filter(
-                queue__resource=sub_queue.resource,
-                queue__date=make_naive(timezone.now()).date(),
-                queue__is_primary=True,
-                sub_queue=sub_queue,
-                status=TokenStatusOptions.CREATED.value,
-            ).order_by("created_date")[:2]
-            upcoming_tokens = [fmt_token_number(t) for t in upcoming_tokens_qs]
+            # Next: tokens still waiting in the queue (not yet called to any
+            # counter), priority tokens first, then in order of arrival.
+            waiting = list(
+                todays_tokens.filter(
+                    sub_queue__isnull=True,
+                    status=TokenStatusOptions.CREATED.value,
+                ).order_by("created_date")[:50]
+            )
+            waiting.sort(key=lambda t: not is_priority_token(t))
+            upcoming_tokens = [fmt_token_number(t) for t in waiting[:2]]
 
             sub_queues_with_data.append(
                 {
