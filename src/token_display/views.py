@@ -20,6 +20,7 @@ from token_display.settings import plugin_settings
 from token_display.utils import (
     fmt_schedule_resource_name,
     fmt_token_number,
+    is_priority_token,
 )
 
 TRUTHY_QUERY_VALUES = {"1", "true", "yes"}
@@ -62,9 +63,14 @@ class SubQueuesTokenDisplayView(APIView):
 
     def get_sub_queue_objects(self, only_with_active_tokens: bool = False):
         external_ids = self.kwargs["sub_queue_external_ids"].split(",")
+        # Inactive sub-queues listed on the board are shown as "on break"
+        # instead of being dropped, so patients know the counter will resume.
         sub_queues = TokenSubQueue.objects.filter(
             external_id__in=external_ids,
-            status=TokenSubQueueStatusOptions.active.value,
+            status__in=[
+                TokenSubQueueStatusOptions.active.value,
+                TokenSubQueueStatusOptions.inactive.value,
+            ],
         )
         if only_with_active_tokens:
             active_token_exists = Token.objects.filter(
@@ -112,23 +118,37 @@ class SubQueuesTokenDisplayView(APIView):
             for sub_queue in sub_queues
         )
 
+        now = timezone.now()
+        recent_call_seconds = plugin_settings.RECENT_CALL_SECONDS
+
         # Fetch token data for each sub-queue
         sub_queues_with_data = []
         for sub_queue in sub_queues:
+            on_break = sub_queue.status == TokenSubQueueStatusOptions.inactive.value
             # Fetch the current token for this sub-queue
             token = (
-                Token.objects.filter(
-                    queue__resource=sub_queue.resource,
-                    queue__date=make_naive(timezone.now()).date(),
-                    queue__is_primary=True,
-                    sub_queue=sub_queue,
-                    status=TokenStatusOptions.IN_PROGRESS.value,
+                None
+                if on_break
+                else (
+                    Token.objects.filter(
+                        queue__resource=sub_queue.resource,
+                        queue__date=make_naive(timezone.now()).date(),
+                        queue__is_primary=True,
+                        sub_queue=sub_queue,
+                        status=TokenStatusOptions.IN_PROGRESS.value,
+                    )
+                    .order_by("-modified_date")
+                    .first()
                 )
-                .order_by("-modified_date")
-                .first()
             )
 
             token_code = fmt_token_number(token) if token else None
+            # "Now calling": the token was moved to in-progress moments ago.
+            # After that it is shown as being in consultation.
+            is_calling = bool(
+                token and recent_call_seconds and (now - token.modified_date).total_seconds() <= recent_call_seconds
+            )
+            is_priority = bool(token and is_priority_token(token))
 
             upcoming_tokens_qs = Token.objects.filter(
                 queue__resource=sub_queue.resource,
@@ -147,8 +167,13 @@ class SubQueuesTokenDisplayView(APIView):
                     "token": token_code or "--",
                     "token_code": token_code,
                     "upcoming_tokens": upcoming_tokens,
+                    "is_calling": is_calling,
+                    "is_priority": is_priority,
+                    "on_break": on_break,
                 }
             )
+
+        missed_tokens = self.get_missed_tokens(sub_queues)
 
         # When no announcement languages are configured, suppress the
         # announcer markup entirely and let the static <meta refresh>
@@ -173,5 +198,28 @@ class SubQueuesTokenDisplayView(APIView):
                 "only_with_active_tokens": only_with_active_tokens,
                 "announcement_payload": announcement_payload,
                 "counter_layout": counter_layout,
+                "missed_tokens": missed_tokens,
             }
         )
+
+    def get_missed_tokens(self, sub_queues) -> list[str]:
+        """
+        Tokens marked "awaiting re-call" (unfulfilled) today for the resources
+        shown on this board, most recently missed first. Patients use this to
+        know they must report back to the counter.
+        """
+        limit = plugin_settings.MISSED_TOKENS_LIMIT
+        if not limit or not sub_queues:
+            return []
+        resource_ids = {sub_queue.resource_id for sub_queue in sub_queues}
+        missed_qs = (
+            Token.objects.filter(
+                queue__resource_id__in=resource_ids,
+                queue__date=make_naive(timezone.now()).date(),
+                queue__is_primary=True,
+                status=TokenStatusOptions.UNFULFILLED.value,
+            )
+            .select_related("category")
+            .order_by("-modified_date")[:limit]
+        )
+        return [fmt_token_number(t) for t in missed_qs]

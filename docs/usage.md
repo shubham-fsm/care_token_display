@@ -129,3 +129,20 @@ once after loading to unlock audio.
   schedule.
 - The `<meta http-equiv="refresh">` fallback still works with JavaScript
   disabled — the page refreshes on schedule but plays no audio.
+
+## Board states
+
+Each row on the board shows the state of its counter / room:
+
+| State | When | Look |
+| --- | --- | --- |
+| Now calling | Token moved to "in progress" within `RECENT_CALL_SECONDS` (default `60`) | Yellow, pulsing row |
+| In consultation | Token in progress for longer than that | Normal row |
+| Emergency | Token category has `metadata.priority = true`, or its name contains Emergency / Priority / Urgent | Red row |
+| On break | Sub-queue (service point) status is `inactive` | Blue row, "थोड़ी देर में लौटेंगे · On break" |
+
+Tokens marked "awaiting re-call" today for the resources on the board are
+listed in a **Missed** strip at the bottom, newest first, up to
+`MISSED_TOKENS_LIMIT` (default `8`; `0` hides the strip).
+
+Labels are shown in Hindi and English.

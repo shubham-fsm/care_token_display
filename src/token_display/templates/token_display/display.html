@@ -225,6 +225,149 @@
         margin: 0 0.5em;
       }
 
+      /* Board layout: the table fills the space above the missed strip. */
+      .tv-display {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .tv-table-wrap {
+        flex: 1;
+        min-height: 0;
+      }
+
+      /* Small bilingual status line above the token number. */
+      .tv-status {
+        font-weight: 700;
+        font-size: clamp(12px, 1.6vmin, 26px);
+        line-height: 1.2;
+        margin-bottom: clamp(2px, 0.6vh, 8px);
+        color: rgba(255, 255, 255, 0.7);
+        white-space: nowrap;
+      }
+
+      /* Now calling: token moved to the room moments ago. */
+      .tv-row.is-calling,
+      .tv-row.is-calling:nth-child(even) {
+        background: #facc15;
+        animation: tv-call-pulse 1.4s ease-in-out infinite;
+      }
+
+      .tv-row.is-calling .tv-doctor-name,
+      .tv-row.is-calling .tv-status,
+      .tv-row.is-calling .tv-next,
+      .tv-row.is-calling .tv-next-label,
+      .tv-row.is-calling .tv-next-token,
+      .tv-row.is-calling .tv-next-token + .tv-next-token::before {
+        color: #111a12;
+      }
+
+      .tv-row.is-calling .tv-room-badge {
+        color: #111a12;
+        border-color: #111a12;
+      }
+
+      .tv-row.is-calling .tv-token-number {
+        color: #111a12;
+      }
+
+      /* Emergency / priority token: red row, also while calling. */
+      .tv-row.is-priority,
+      .tv-row.is-priority:nth-child(even),
+      .tv-row.is-priority.is-calling {
+        background: #dc2626;
+      }
+
+      .tv-row.is-priority .tv-doctor-name,
+      .tv-row.is-priority .tv-status,
+      .tv-row.is-priority .tv-next,
+      .tv-row.is-priority .tv-next-label,
+      .tv-row.is-priority .tv-next-token,
+      .tv-row.is-priority .tv-next-token + .tv-next-token::before,
+      .tv-row.is-priority .tv-token-number {
+        color: #ffffff;
+      }
+
+      .tv-row.is-priority .tv-room-badge {
+        color: #ffffff;
+        border-color: #ffffff;
+      }
+
+      /* Counter on break: keep it on the board so patients wait. */
+      .tv-row.on-break,
+      .tv-row.on-break:nth-child(even) {
+        background: #1e3a5f;
+      }
+
+      .tv-break-text {
+        font-weight: 700;
+        color: #bfdbfe;
+        font-size: clamp(18px, 3.4vmin, 52px);
+        line-height: 1.15;
+        white-space: nowrap;
+      }
+
+      @keyframes tv-call-pulse {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.12);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tv-row.is-calling {
+          animation: none;
+        }
+      }
+
+      /* Missed tokens strip at the bottom of the board. */
+      .tv-missed {
+        display: flex;
+        align-items: center;
+        gap: clamp(12px, 2vw, 32px);
+        background: #3b1414;
+        border-top: 3px solid #f87171;
+        padding: clamp(6px, 1.2vh, 16px) clamp(16px, 2.2vw, 40px);
+      }
+
+      .tv-missed-label {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        color: #fecaca;
+        font-weight: 700;
+        font-size: clamp(14px, 2.2vmin, 34px);
+        line-height: 1.2;
+      }
+
+      .tv-missed-hint {
+        font-weight: 500;
+        font-size: clamp(11px, 1.4vmin, 22px);
+        color: #fca5a5;
+      }
+
+      .tv-missed-tokens {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: clamp(6px, 1vw, 16px);
+        flex: 1;
+      }
+
+      .tv-missed-token {
+        background: #0a0a0a;
+        color: #fecaca;
+        border-radius: 8px;
+        padding: 0.1em 0.5em;
+        font-weight: 800;
+        font-size: clamp(18px, 3.4vmin, 52px);
+        font-variant-numeric: tabular-nums;
+        text-transform: uppercase;
+      }
+
       .empty-screen {
         position: fixed;
         inset: 0;
@@ -236,21 +379,25 @@
     {% if sub_queues and item_count > 0 %}
     <div class="tv-page">
       <div class="tv-display">
+        <div class="tv-table-wrap">
         <table class="tv-table{% if counter_layout %} tv-counter{% endif %}">
           <thead>
             <tr class="tv-header-row">
               {% if not counter_layout %}
-              <th class="tv-col-doctor">Doctor</th>
+              <th class="tv-col-doctor">डॉक्टर · Doctor</th>
               {% endif %}
               <th class="tv-col-room">
-                {% if counter_layout %}Counter{% else %}Room{% endif %}
+                {% if counter_layout %}काउंटर · Counter{% else %}कमरा · Room{% endif %}
               </th>
-              <th class="tv-col-token">Token</th>
+              <th class="tv-col-token">टोकन · Token</th>
             </tr>
           </thead>
           <tbody>
             {% for sub_queue in sub_queues %}
-            <tr class="tv-row" style="height: {% widthratio 100 item_count 1 %}%">
+            <tr
+              class="tv-row{% if sub_queue.is_calling %} is-calling{% endif %}{% if sub_queue.is_priority %} is-priority{% endif %}{% if sub_queue.on_break %} on-break{% endif %}"
+              style="height: {% widthratio 100 item_count 1 %}%"
+            >
               {% if not counter_layout %}
               <td class="tv-col-doctor">
                 <div class="tv-doctor-name">{{ sub_queue.resource_name }}</div>
@@ -260,10 +407,19 @@
                 <div class="tv-room-badge">{{ sub_queue.sub_queue_name }}</div>
               </td>
               <td class="tv-col-token">
+                {% if sub_queue.on_break %}
+                <div class="tv-break-text">थोड़ी देर में लौटेंगे · On break</div>
+                {% else %}
+                {% if sub_queue.token_code %}
+                <div class="tv-status">
+                  {% if sub_queue.is_priority %}आपातकालीन · Emergency{% elif sub_queue.is_calling %}अब बुलाया जा रहा है · Now calling{% else %}परामर्श में · In consultation{% endif %}
+                </div>
+                {% endif %}
                 <div class="tv-token-number">{{ sub_queue.token }}</div>
+                {% endif %}
                 {% if sub_queue.upcoming_tokens %}
                 <div class="tv-next">
-                  <span class="tv-next-label">Next:</span>
+                  <span class="tv-next-label">अगले · Next:</span>
                   {% for upcoming in sub_queue.upcoming_tokens %}
                   <span class="tv-next-token">{{ upcoming }}</span>
                   {% endfor %}
@@ -274,6 +430,22 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
+        {% if missed_tokens %}
+        <div class="tv-missed">
+          <div class="tv-missed-label">
+            <span>छूटे हुए नंबर · Missed</span>
+            <span class="tv-missed-hint">
+              कृपया पंजीकरण काउंटर पर संपर्क करें · Please report to the registration counter
+            </span>
+          </div>
+          <div class="tv-missed-tokens">
+            {% for missed in missed_tokens %}
+            <span class="tv-missed-token">{{ missed }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
     {% else %}
