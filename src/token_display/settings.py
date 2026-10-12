@@ -109,6 +109,10 @@ DEFAULTS = {
     # Maximum number of missed (awaiting re-call) tokens listed at the bottom
     # of the board. Set to 0 to hide the missed tokens strip.
     "MISSED_TOKENS_LIMIT": 8,
+    # Show inactive sub-queues (service points) on the board as "On break"
+    # instead of hiding them. Off by default. Override per board with the
+    # `?show_breaks=1` / `?show_breaks=0` query parameter.
+    "SHOW_INACTIVE_AS_BREAK": False,
 }
 
 plugin_settings = PluginSettings(

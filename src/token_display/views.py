@@ -38,6 +38,13 @@ def _parse_bool_query_param(value: str | None) -> bool:
     return value.strip().lower() in TRUTHY_QUERY_VALUES
 
 
+def _parse_optional_bool_query_param(value: str | None) -> bool | None:
+    """Like `_parse_bool_query_param`, but returns ``None`` when absent."""
+    if value is None:
+        return None
+    return _parse_bool_query_param(value)
+
+
 def _parse_va_lang_query_param(value: str | None) -> list[str] | None:
     """Parse a comma-separated `?va_lang=` value.
 
@@ -61,16 +68,24 @@ class SubQueuesTokenDisplayView(APIView):
     renderer_classes = [TemplateHTMLRenderer]
     template_name = "token_display/display.html"
 
+    def show_breaks(self) -> bool:
+        """
+        Whether inactive sub-queues are shown as "on break" instead of being
+        hidden. Off unless enabled explicitly via SHOW_INACTIVE_AS_BREAK or
+        `?show_breaks=1`, since marking a service point inactive does not
+        otherwise mean a break.
+        """
+        override = _parse_optional_bool_query_param(self.request.query_params.get("show_breaks"))
+        return override if override is not None else bool(plugin_settings.SHOW_INACTIVE_AS_BREAK)
+
     def get_sub_queue_objects(self, only_with_active_tokens: bool = False):
         external_ids = self.kwargs["sub_queue_external_ids"].split(",")
-        # Inactive sub-queues listed on the board are shown as "on break"
-        # instead of being dropped, so patients know the counter will resume.
+        statuses = [TokenSubQueueStatusOptions.active.value]
+        if self.show_breaks():
+            statuses.append(TokenSubQueueStatusOptions.inactive.value)
         sub_queues = TokenSubQueue.objects.filter(
             external_id__in=external_ids,
-            status__in=[
-                TokenSubQueueStatusOptions.active.value,
-                TokenSubQueueStatusOptions.inactive.value,
-            ],
+            status__in=statuses,
         )
         if only_with_active_tokens:
             active_token_exists = Token.objects.filter(

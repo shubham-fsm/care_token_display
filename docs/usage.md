@@ -29,6 +29,7 @@ announced at most once per display across page refreshes.
 | Param     | Default                   | Description                                                                                                                                                                       |
 | --------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `va_lang` | `VA_DEFAULT_LANG` setting | Comma-separated language codes for the prefix announcement (e.g. `en_IN`, `ml_IN,en_IN`). Each code must have a matching `prefix-<code>.wav`. Pass `?va_lang=` (empty) to mute. |
+| `show_breaks` | `SHOW_INACTIVE_AS_BREAK` setting | `1` shows inactive service points as "On break"; `0` hides them. See [Board states](#board-states). |
 
 ### Muting the voice announcer
 
@@ -132,14 +133,16 @@ once after loading to unlock audio.
 
 ## Board states
 
-Each row on the board shows the state of its counter / room:
+Each row on the board shows the state of its counter / room as a short text
+line above the token. The board's colours and backgrounds stay the same in
+every state.
 
-| State | When | Look |
+| State | When | Shown as |
 | --- | --- | --- |
-| Now calling | Token called to the counter / room (status `CREATED` with a sub-queue) — stays until the patient arrives | Yellow, pulsing row |
-| In consultation | Token being served (status `IN_PROGRESS`) | Normal row |
-| Emergency | Token category has `metadata.priority = true`, or its name contains Emergency / Priority / Urgent | Red row |
-| On break | Sub-queue (service point) status is `inactive` | Blue row, "थोड़ी देर में लौटेंगे · On break" |
+| Now calling | Token called to the counter / room (status `CREATED` with a sub-queue): stays until the patient arrives | "Now calling" above the token |
+| In consultation | Token being served (status `IN_PROGRESS`) | "In consultation" above the token |
+| Emergency | Token category has `metadata.priority = true`, or its name contains Emergency / Priority / Urgent | "Emergency" above the token |
+| On break | Sub-queue (service point) status is `inactive`, **only when breaks are enabled** (below) | "On break" in place of the token |
 
 "Next" lists tokens still waiting in the queue (not yet called to any
 counter), priority tokens first.
@@ -148,4 +151,12 @@ Tokens marked "awaiting re-call" today for the resources on the board are
 listed in a **Missed** strip at the bottom, newest first, up to
 `MISSED_TOKENS_LIMIT` (default `8`; `0` hides the strip).
 
-Labels are shown in Hindi and English.
+### Showing breaks
+
+By default an inactive service point is hidden from the board, as before.
+Marking a service point inactive does not by itself mean a break, so showing
+it as "On break" is an explicit choice:
+
+- For every board: set `SHOW_INACTIVE_AS_BREAK = True` in the plugin settings.
+- For one board: add `?show_breaks=1` to its URL (`?show_breaks=0` turns it
+  off when the setting is on).
