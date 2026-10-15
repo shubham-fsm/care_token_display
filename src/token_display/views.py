@@ -21,6 +21,7 @@ from token_display.utils import (
     fmt_schedule_resource_name,
     fmt_token_number,
     is_priority_token,
+    token_priority_rank,
 )
 
 TRUTHY_QUERY_VALUES = {"1", "true", "yes"}
@@ -167,14 +168,15 @@ class SubQueuesTokenDisplayView(APIView):
             is_priority = bool(token and is_priority_token(token))
 
             # Next: tokens still waiting in the queue (not yet called to any
-            # counter), priority tokens first, then in order of arrival.
+            # counter) in the order Serve Next calls them: emergency, then
+            # high priority, then the rest, each in order of arrival.
             waiting = list(
                 todays_tokens.filter(
                     sub_queue__isnull=True,
                     status=TokenStatusOptions.CREATED.value,
-                ).order_by("created_date")[:50]
+                ).order_by("created_date")[:500]
             )
-            waiting.sort(key=lambda t: not is_priority_token(t))
+            waiting.sort(key=token_priority_rank)
             upcoming_tokens = [fmt_token_number(t) for t in waiting[:2]]
 
             sub_queues_with_data.append(
