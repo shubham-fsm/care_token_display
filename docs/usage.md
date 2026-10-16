@@ -173,7 +173,7 @@ A called patient walking in (called → in consultation) is not announced again,
 and a plain page refresh never repeats an announcement.
 
 The `on_break.wav` files are generated with a neural text-to-speech voice
-(Kokoro, Hindi female voice `hf_alpha`, for `hi_IN` and `en_IN`; espeak-ng for
+(Kokoro, Hindi female voice `hf_beta`, slightly brighter with a soft reverb, for `hi_IN` and `en_IN`; espeak-ng for
 `ml_IN`). To use a human recording instead, record the sentence in each language and replace
 `sounds/<lang>/on_break.wav` (WAV, mono, 44.1 kHz, 16-bit):
 
