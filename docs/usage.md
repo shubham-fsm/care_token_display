@@ -172,8 +172,9 @@ it as "On break" is an explicit choice:
 A called patient walking in (called → in consultation) is not announced again,
 and a plain page refresh never repeats an announcement.
 
-The `on_break.wav` files shipped here are machine-generated (espeak-ng).
-For a natural voice, record the sentence in each language and replace
+The `on_break.wav` files are generated with a neural text-to-speech voice
+(Kokoro, Hindi female voice `hf_alpha`, for `hi_IN` and `en_IN`; espeak-ng for
+`ml_IN`). To use a human recording instead, record the sentence in each language and replace
 `sounds/<lang>/on_break.wav` (WAV, mono, 44.1 kHz, 16-bit):
 
 - `hi_IN`: "कृपया ध्यान दें। डॉक्टर थोड़ी देर के लिए ब्रेक पर हैं। कृपया प्रतीक्षा करें।"
