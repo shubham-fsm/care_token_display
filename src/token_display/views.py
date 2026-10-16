@@ -60,6 +60,32 @@ def _parse_va_lang_query_param(value: str | None) -> list[str] | None:
     return [p for p in parts if _VA_LANG_RE.match(p)]
 
 
+
+def announcement_for(sub_queue, on_break, token, token_code, is_calling) -> dict:
+    """
+    What the board should say for a room, and a key that changes whenever
+    it should be said again:
+
+    - "break": the room has just gone on break.
+    - "call": a patient is called. Said again when the same patient is
+      called again (re-call), or when the room is back from a break with
+      the patient still called.
+    - "serve": a patient is shown for the first time already in
+      consultation (not announced again when a called patient walks in).
+    """
+    room_changed = int(sub_queue.modified_date.timestamp())
+    if on_break:
+        return {"announce_kind": "break", "announce_key": f"break:{room_changed}"}
+    if token and is_calling:
+        called_at = int(token.modified_date.timestamp())
+        return {
+            "announce_kind": "call",
+            "announce_key": f"call:{token_code}:{called_at}-{room_changed}",
+        }
+    if token:
+        return {"announce_kind": "serve", "announce_key": f"serve:{token_code}"}
+    return {"announce_kind": None, "announce_key": None}
+
 class SubQueuesTokenDisplayView(APIView):
     """
     Main view that renders the full SSR token display page for a facility.
@@ -190,6 +216,7 @@ class SubQueuesTokenDisplayView(APIView):
                     "is_calling": is_calling,
                     "is_priority": is_priority,
                     "on_break": on_break,
+                    **announcement_for(sub_queue, on_break, token, token_code, is_calling),
                 }
             )
 
@@ -203,7 +230,13 @@ class SubQueuesTokenDisplayView(APIView):
             if not va_langs
             else {
                 "sub_queues": [
-                    {"id": entry["id"], "token_code": entry["token_code"]} for entry in sub_queues_with_data
+                    {
+                        "id": entry["id"],
+                        "token_code": entry["token_code"],
+                        "announce_kind": entry["announce_kind"],
+                        "announce_key": entry["announce_key"],
+                    }
+                    for entry in sub_queues_with_data
                 ],
                 "langs": va_langs,
                 "auto_refresh_interval": plugin_settings.AUTO_REFRESH_INTERVAL,

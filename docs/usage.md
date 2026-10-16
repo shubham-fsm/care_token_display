@@ -160,3 +160,22 @@ it as "On break" is an explicit choice:
 - For every board: set `SHOW_INACTIVE_AS_BREAK = True` in the plugin settings.
 - For one board: add `?show_breaks=1` to its URL (`?show_breaks=0` turns it
   off when the setting is on).
+
+### What is announced, and when
+
+| On the board | Announcement | Said again when |
+| --- | --- | --- |
+| A patient is called to a room ("Now calling") | chime, *"Now serving token"* + the token, in each `va_lang` | the same patient is called again (re-call), or the room is back from a break with the patient still called |
+| A room goes on break ("On break") | chime, *"The doctor is on a short break, please wait"* (`<lang>/on_break.wav`) | the room goes on break again |
+| A patient shown for the first time already in consultation | chime, *"Now serving token"* + the token | — |
+
+A called patient walking in (called → in consultation) is not announced again,
+and a plain page refresh never repeats an announcement.
+
+The `on_break.wav` files shipped here are machine-generated (espeak-ng).
+For a natural voice, record the sentence in each language and replace
+`sounds/<lang>/on_break.wav` (WAV, mono, 44.1 kHz, 16-bit):
+
+- `hi_IN`: "कृपया ध्यान दें। डॉक्टर थोड़ी देर के लिए ब्रेक पर हैं। कृपया प्रतीक्षा करें।"
+- `en_IN`: "Attention please. The doctor is on a short break. Please wait."
+- `ml_IN`: "ശ്രദ്ധിക്കുക. ഡോക്ടർ അല്പസമയം ഇടവേളയിലാണ്. ദയവായി കാത്തിരിക്കുക."

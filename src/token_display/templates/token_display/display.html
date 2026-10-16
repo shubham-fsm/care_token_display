@@ -466,15 +466,22 @@
         var queue = [];
         for (var j = 0; j < subQueues.length; j++) {
           var entry = subQueues[j];
-          var code = entry.token_code;
-          if (!code || code === "--") continue; // never overwrite real with null
-          if (store[entry.id] === code) continue; // already announced
+          var kind = entry.announce_kind;
+          var said = store[entry.id] || "";
+          if (!kind) continue; // nothing on the board: keep what was said
+          if (said === entry.announce_key) continue; // already announced
+          // A patient walking in (called -> in consultation) is not announced
+          // again; only a patient first shown in consultation is.
+          if (kind === "serve" && said.indexOf(entry.token_code) !== -1) {
+            store[entry.id] = entry.announce_key;
+            continue;
+          }
           queue.push(entry);
         }
 
         function persistAll() {
           for (var k = 0; k < queue.length; k++) {
-            store[queue[k].id] = queue[k].token_code;
+            store[queue[k].id] = queue[k].announce_key;
           }
           saveStore(store);
         }
@@ -499,6 +506,14 @@
         // separated at schedule-time by ``INTER_LANG_GAP_S`` of silence.
         // Fragment names map to ``<FRAGMENTS_BASE>/<name>.wav``.
         function passesFor(entry) {
+          if (entry.announce_kind === "break") {
+            // "The doctor is on a short break, please wait"
+            var breakPasses = [];
+            for (var bl = 0; bl < langs.length; bl++) {
+              breakPasses.push(["chime", langs[bl] + "/on_break"]);
+            }
+            return breakPasses;
+          }
           var code = String(entry.token_code).toUpperCase();
           var chars = [];
           for (var n = 0; n < code.length; n++) {
@@ -598,7 +613,10 @@
                         // Insert the inter-character gap before each spelled-out
                         // letter/digit (but not before the chime or any
                         // <lang>/prefix fragment).
-                        if (name !== "chime" && !/\/prefix$/.test(name)) {
+                        if (
+                          name !== "chime" &&
+                          !/\/(prefix|on_break)$/.test(name)
+                        ) {
                           cursor += INTER_CHAR_GAP_S;
                         }
                         var src = ctx.createBufferSource();
@@ -611,7 +629,7 @@
                     }
                     // Persist as soon as the entry is fully scheduled — the
                     // sources are already locked to the AudioContext clock.
-                    store[entry.id] = entry.token_code;
+                    store[entry.id] = entry.announce_key;
                   });
                   saveStore(store);
 
